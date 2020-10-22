@@ -1,0 +1,83 @@
+---
+title: "ML_Project"
+author: "Dev Das"
+date: "October 22, 2020"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Data and Exploration
+
+Downloading the data files and doing some basic exploration
+
+```{r Downloading Data}
+train <- read.csv('pml-training.csv')
+test <- read.csv('pml-testing.csv')
+dim(train) # Looking at the rows and columns of the train dataset
+dim(test) # Looking at the rows and columns of the test dataset
+```
+
+## Train validation Split
+
+We need to split the training data given to a training set and validation set so we can validate the model we create
+
+```{r Splitting}
+library(caret)
+set.seed(123)
+trainset <- createDataPartition(train$classe, p = 0.6, list = FALSE)
+training <- train[trainset, ]
+validation <- train[-trainset, ]
+```
+
+## Cleaning the data
+
+Exclude columns with lots of missing values exclude descriptive columns like name etc
+```{r}
+cnt <- sapply(training, function(x) {
+    sum(!(is.na(x) | x == ""))
+})
+nullcol <- names(cnt[cnt < 0.5 * length(training$classe)])
+descriptcol <- c("X", "user_name", "raw_timestamp_part_1", "raw_timestamp_part_2", 
+    "cvtd_timestamp", "new_window", "num_window")
+excludecols <- c(descriptcol, nullcol)
+training <- training[, !names(training) %in% excludecols]
+```
+
+## Training the model
+
+We are going to use a Random Forest model to classify the data we are given to determine the prediction of the 'classe' variable. We use random forest since this will be a supervied learning model in the end. I set an arbitrary value of 8 trees so that the model could be run in a reasonable amount of time.
+
+```{r Training}
+library(randomForest)
+rfModel <- randomForest(classe ~ ., data = training, importance = TRUE, ntrees = 8)
+```
+
+## Predictions for the Model
+
+Next we will test the model to see how it performs on the training set and validation set. The training set we are expecting very accurate predictions since that is the data we trained the model with. The validation set will give more interesting results
+```{r Train prediction}
+predict_training <- predict(rfModel, training)
+print(confusionMatrix(predict_training, training$classe))
+```
+As expected the training set had very high accuracy values, so we will look at the validation set next
+
+```{r Validation prediction}
+predict_validation <- predict(rfModel, validation)
+print(confusionMatrix(predict_validation, validation$classe))
+```
+We can see here that the accuracy decreased by a small amount here, however 99.34% is still a very good model. This also tells us that the out of sample error is extremely small, being less than 1%. 
+
+## Testing set
+
+
+These values will be entered into the quiz
+```{r Test Predictions}
+prediction_test <- predict(rfModel, test)
+prediction_test
+```
+
+
+
